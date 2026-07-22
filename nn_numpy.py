@@ -116,13 +116,62 @@ def load_mnist_idx(images_path, labels_path):
     return images, labels
 
 DATA_DIR = "mnist_dataset"
-train_img_path = os.path.join(DATA_DIR, "train-images-idx3-ubyte")
-train_lbl_path = os.path.join(DATA_DIR, "train-labels-idx1-ubyte")
-test_img_path = os.path.join(DATA_DIR, "t10k-images-idx3-ubyte")
-test_lbl_path = os.path.join(DATA_DIR, "t10k-labels-idx1-ubyte")
+train_img_path = os.path.join(DATA_DIR, "train-images.idx3-ubyte")
+train_lbl_path = os.path.join(DATA_DIR, "train-labels.idx1-ubyte")
+test_img_path = os.path.join(DATA_DIR, "t10k-images.idx3-ubyte")
+test_lbl_path = os.path.join(DATA_DIR, "t10k-labels.idx1-ubyte")
 X_train_raw, y_train = load_mnist_idx(train_img_path, train_lbl_path)
 X_test_raw, y_test = load_mnist_idx(test_img_path, test_lbl_path)
 X_train = X_train_raw.astype('float32') / 255.0
 X_test = X_test_raw.astype('float32') / 255.0
 # ------------------------------------
 
+dense1 = Layer_Dense(784, 128)
+activation1 = Activation_ReLU()
+dense2 = Layer_Dense(128,10)
+loss_activation = Activation_Softmax_Loss_CategoricalCrossEntropy()
+
+optimizer = Optimizer_Adam(learning_rate=0.001)
+
+BATCH_SIZE = 128 # how many batches are gonna go into the training at once 
+EPOCHS = 5 # how many times the training loop is going to run on the entire dataset
+
+num_samples = X_train.shape[0]
+
+for epoch in range(EPOCHS):
+    permutation = np.random.permutation(num_samples)
+    X_train_shuffled = X_train[permutation]
+    y_train_shuffled = y_train[permutation]
+    
+    epoch_loss = 0
+    epoch_acc = 0
+    num_batches = num_samples // BATCH_SIZE
+
+    for i in range(0, num_samples, BATCH_SIZE):
+        X_batch = X_train_shuffled[i:i+BATCH_SIZE]
+        y_batch = y_train_shuffled[i:i+BATCH_SIZE]
+
+        if len(X_batch) < BATCH_SIZE:
+            continue
+
+        dense1.forward(X_batch)
+        activation1.forward(dense1.output)
+        dense2.forward(activation1.output)
+
+        loss = loss_activation.forward(dense2.output, y_batch)
+
+        predictions = np.argmax(loss_activation.output, axis=1)
+        accuracy = np.mean(predictions == y_batch)
+        
+        epoch_loss += loss
+        epoch_acc += accuracy
+
+        loss_activation.backward(loss_activation.output, y_batch)
+        dense2.backward(loss_activation.dinputs)
+        activation1.backward(dense2.dinputs)
+        dense1.backward(activation1.dinputs)
+
+        optimizer.update_params(dense1)
+        optimizer.update_params(dense2)
+
+    print(f"Epoch {epoch+1}/{EPOCHS} | Avg Loss: {epoch_loss/num_batches:.4f} | Accuracy: {(epoch_acc/num_batches)*100:.2f}%")
