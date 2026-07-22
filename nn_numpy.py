@@ -1,6 +1,35 @@
 import os
 import struct
 import numpy as np
+import matplotlib.pyplot as plt
+
+def visualize_predictions(X_test, y_test, num_images=5):# show some predicted images
+    random_indices = np.random.choice(len(X_test), num_images, replace=False)
+    
+    dense1.forward(X_test[random_indices])
+    activation1.forward(dense1.output)
+    dense2.forward(activation1.output)
+    loss_activation.softmax_activation.forward(dense2.output)
+    
+    probabilities = loss_activation.softmax_activation.output
+    predictions = np.argmax(probabilities, axis=1)
+    
+    plt.figure(figsize=(12, 3))
+    for idx, test_idx in enumerate(random_indices):
+        img = X_test[test_idx].reshape(28, 28)
+        
+        plt.subplot(1, num_images, idx + 1)
+        plt.imshow(img, cmap='gray')
+        
+        guess = predictions[idx]
+        actual = y_test[test_idx]
+        conf = probabilities[idx][guess] * 100
+        title_color = 'green' if guess == actual else 'red'
+        plt.title(f"Pred: {guess} ({conf:.1f}%)\nTrue: {actual}", color=title_color)
+        plt.axis('off')
+        
+    plt.tight_layout()
+    plt.show()
 
 class Optimizer_Adam:   
     def __init__(self, learning_rate=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-7):
@@ -175,3 +204,5 @@ for epoch in range(EPOCHS):
         optimizer.update_params(dense2)
 
     print(f"Epoch {epoch+1}/{EPOCHS} | Avg Loss: {epoch_loss/num_batches:.4f} | Accuracy: {(epoch_acc/num_batches)*100:.2f}%")
+
+visualize_predictions(X_test, y_test, num_images=5)
