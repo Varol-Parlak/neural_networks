@@ -8,7 +8,8 @@ from torch.utils.data import DataLoader
 transform = transforms.ToTensor()
 train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
 train_loader = DataLoader(dataset=train_dataset, batch_size=128, shuffle=True)
-
+test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=128, shuffle=False)
 class SimpleNN(nn.Module):
     def __init__(self, in_features, hidden_features, out_features):
         super().__init__()
@@ -27,7 +28,7 @@ class SimpleNN(nn.Module):
 model = SimpleNN(in_features=784, hidden_features=128, out_features=10)
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model().parameters, lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 EPOCHS = 5
 samples = len(train_dataset)
@@ -49,3 +50,23 @@ for epoch in range(EPOCHS):
         epoch_loss += loss.item()
         predictions = torch.argmax(outputs, dim=1)
         epoch_acc += (predictions == y_batch).float().mean().item()
+
+    num_batches = len(train_loader)
+    print(f"Epoch {epoch+1}/{EPOCHS} | Avg Loss: {epoch_loss/num_batches:.4f} | Accuracy: {(epoch_acc/num_batches)*100:.2f}%")
+
+def eval_model(model, test_loader):
+    model.eval()
+
+    test_acc=0
+    with torch.no_grad():
+        for x_batch, y_batch in test_loader:
+
+            outputs = model(x_batch)
+
+            predictions = torch.argmax(outputs, dim=1)
+            test_acc += (predictions == y_batch).float().mean().item()
+
+    final_acc = test_acc / len(test_loader)
+    print(f"Test Accuracy: {final_acc * 100:.2f}%")
+
+eval_model(model, test_loader)
