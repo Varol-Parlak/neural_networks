@@ -28,7 +28,39 @@ class SimpleNN(nn.Module):
         x = self.dense2(x)
         return x
 
-model = SimpleNN(in_features=784, hidden_features=128, out_features=10).to(device)
+class AdvancedCNN(nn.Module):
+    def __init__(self, num_classes=10):
+        super().__init__()
+
+        self.block1 = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.block2 = nn.Sequential(
+            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features=32 * 7 * 7, out_features=128),
+            nn.ReLU(),
+            nn.Linear(in_features=128, out_features=num_classes)
+        )
+
+    def forward(self, x):
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.classifier(x)
+        return x
+
+
+#model = SimpleNN(in_features=784, hidden_features=128, out_features=10).to(device)
+model = AdvancedCNN().to(device)
+
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -64,7 +96,7 @@ def eval_model(model, test_loader):
     test_acc=0
     with torch.no_grad():
         for x_batch, y_batch in test_loader:
-
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
             outputs = model(x_batch)
 
             predictions = torch.argmax(outputs, dim=1)
