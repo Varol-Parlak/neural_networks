@@ -44,6 +44,15 @@ class Value():
         for v in reversed(topo):
             v._backward()
 
+    def __pow__(self, other):
+        assert isinstance(other, (int, float))
+        out = Value(self.data ** other, (self,), f"**{other}") # other is not in children because its not a Value object
+
+        def _backward():
+            self.grad += (other * self.data**(other-1)) * out.grad
+        out._backward = _backward
+
+        return out
 
     def __neg__(self): 
         return self * -1
