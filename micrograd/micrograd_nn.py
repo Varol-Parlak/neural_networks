@@ -1,5 +1,5 @@
 import random 
-from micrograd.micrograd_engine import Value
+from micrograd_engine import Value
 
 class Module:
     def zero_grad(self):
@@ -11,7 +11,7 @@ class Module:
 
 class Neuron(Module):
     def __init__(self, nin, nonlin=True):
-        self.weight = [Value(random.uniform(-1, 1) for _ in range(nin))]
+        self.weight = [Value(random.uniform(-1, 1)) for _ in range(nin)]
         self.bias = Value(0)
         self.nonlin = nonlin
 

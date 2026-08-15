@@ -8,7 +8,7 @@ class Value():
 
     def __add__(self, other):
         other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data + self.other, (self, other), "+")
+        out = Value(self.data + other.data, (self, other), "+")
 
         def _backward():
             self.grad += out.grad
@@ -19,7 +19,7 @@ class Value():
 
     def __mul__(self, other):
         other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data * self.other, (self, other))
+        out = Value(self.data * other.data, (self, other))
 
         def _backward():
             self.grad += out.grad * other.data
@@ -35,11 +35,12 @@ class Value():
         visited = set()
         def build_topo(v):
             if v not in visited:
-                visited.append(v)
+                visited.add(v)
                 for children in v._prev:
                     build_topo(children)
                 topo.append(v)
 
+        build_topo(self)
         self.grad = 1
         for v in reversed(topo):
             v._backward()

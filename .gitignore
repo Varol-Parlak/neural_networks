@@ -3,3 +3,4 @@ mnist_dataset/*
 data/
 data/*
 names.txt
+micrograd/__pycache__
