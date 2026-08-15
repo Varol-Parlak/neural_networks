@@ -1,5 +1,5 @@
 import random 
-from micrograd_engine import Value
+from micrograd.micrograd_engine import Value
 
 class Module:
     def zero_grad(self):
