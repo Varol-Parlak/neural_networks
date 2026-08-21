@@ -66,7 +66,7 @@ for i in range(epoch):
     for p in parameters:
         p.data += -lr * p.grad
 
-    lossi.append(loss.item())
+    lossi.append(loss.log10().item())
     stepi.append(i)
 
 emb = C[Xdev]
