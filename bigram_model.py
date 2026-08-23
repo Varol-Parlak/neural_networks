@@ -31,25 +31,25 @@ random.shuffle(words)
 n1 = int(0.8*len(words))
 n2 = int(0.9*len(words))
 
-Xtr, Ytr = build_dataset(words[:n1])
-Xdev, Ydev = build_dataset(words[n1:n2])
-Xte, Yte = build_dataset(words[n2:])
+Xtr, Ytr = build_dataset(words[:n1]) # The training percent of the words
+Xdev, Ydev = build_dataset(words[n1:n2]) # The validation 
+Xte, Yte = build_dataset(words[n2:]) # The test 
 
 g = torch.Generator().manual_seed(2147483647)
-C = torch.rand((27, 10), generator=g)
+C = torch.rand((27, 10), generator=g) # Embedding table 27x10(27 chars 10 dimensions)
 W1 = torch.randn((30, 500), generator=g) * ((5/3) / (30**0.5))
 b1 = torch.rand(500, generator=g) * 0.01
 W2 = torch.randn((500, 27), generator=g) * 0.01
 b2 = torch.randn(27, generator=g)
 parameters = [C, W1, b1, W2, b2]
-epoch = 50000
-lossi, stepi = [], []
+epoch, batchsize = 50000, 32
+lossi, stepi = [], [] 
 
 for p in parameters:
     p.requires_grad = True
 
 for i in range(epoch):
-    ix = torch.randint(0, Xtr.shape[0], (32,))
+    ix = torch.randint(0, Xtr.shape[0], (batchsize,))
 
     emb = C[Xtr[ix]]
     h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
@@ -57,11 +57,11 @@ for i in range(epoch):
     loss = F.cross_entropy(logits, Ytr[ix])
     
     for p in parameters:
-        p.grad = None 
+        p.grad = None # zero_grad() so gradients dont accumulate
 
     loss.backward()
 
-    lr = 0.1 if i < 30000 else 0.01
+    lr = 0.1 if i < 30000 else 0.01 # decaying learning rate
 
     for p in parameters:
         p.data += -lr * p.grad
