@@ -37,11 +37,13 @@ Xte, Yte = build_dataset(words[n2:]) # The test
 
 g = torch.Generator().manual_seed(2147483647)
 C = torch.rand((27, 10), generator=g) # Embedding table 27x10(27 chars 10 dimensions)
-W1 = torch.randn((30, 500), generator=g) * ((5/3) / (30**0.5))
-b1 = torch.rand(500, generator=g) * 0.01
-W2 = torch.randn((500, 27), generator=g) * 0.01
-b2 = torch.randn(27, generator=g)
-parameters = [C, W1, b1, W2, b2]
+W1 = torch.randn((30, 300), generator=g)
+b1 = torch.rand(300, generator=g) 
+W2 = torch.randn((300, 200), generator=g)
+b2 = torch.randn(200, generator=g)
+W3 = torch.randn((200,27), generator=g)
+b3 = torch.randn(27, generator=g)
+parameters = [C, W1, b1, W2, b2, W3, b3]
 epoch, batchsize = 50000, 32
 lossi, stepi = [], [] 
 
@@ -52,8 +54,13 @@ for i in range(epoch):
     ix = torch.randint(0, Xtr.shape[0], (batchsize,))
 
     emb = C[Xtr[ix]]
-    h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-    logits = h @ W2 + b2
+
+    h1 = torch.tanh(emb.view(-1, 30) @ W1 + b1)
+
+    h2 = torch.tanh(h1 @ W2 + b2)
+
+    logits = h2 @ W3 + b3
+
     loss = F.cross_entropy(logits, Ytr[ix])
     
     for p in parameters:
@@ -69,17 +76,14 @@ for i in range(epoch):
     lossi.append(loss.log10().item())
     stepi.append(i)
 
-emb = C[Xdev]
-h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-logits = h @ W2 + b2
-loss = F.cross_entropy(logits, Ydev)
-print(loss)
 
-emb = C[Xte]
-h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-logits = h @ W2 + b2
-loss = F.cross_entropy(logits, Yte)
-print(loss)
+# validation run
+emb = C[Xdev]
+h1 = torch.tanh(emb.view(-1, 30) @ W1 + b1)
+h2 = torch.tanh(h1 @ W2 + b2)
+logits = h2 @ W3 + b3
+loss = F.cross_entropy(logits, Ydev)
+print(loss.item())
 
 plt.plot(stepi,lossi)
 plt.show()
