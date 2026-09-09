@@ -48,7 +48,9 @@ b2 = torch.randn(vocab_size, generator=g) * 0.01
 # W3 = torch.randn((200,27), generator=g) * 0.01
 # b3 = torch.randn(27, generator=g) * 0
 # parameters = [C, W1, b1, W2, b2, W3, b3]
-parameters = [C, W1, b1, W2, b2]
+bngain = torch.ones((1, n_hidden))
+bnbias = torch.zeros((1, n_hidden))
+parameters = [C, W1, b1, W2, b2, bngain, bnbias]
 epoch, batchsize = 10000, 32
 lossi, stepi = [], [] 
 
@@ -60,9 +62,11 @@ for i in range(epoch):
 
     emb = C[Xtr[ix]] # embedding the chars into vectors
     embcat = emb.view(emb.shape[0], -1) # concat the vectors
-    h1 = torch.tanh(embcat @ W1 + b1) # hidden layer activation
+    hpreact = embcat @ W1 + b1 # hidden layer pre-activation
+    hpreact = bngain * (hpreact - hpreact.mean(0, keepdims=True)) / hpreact.std(0, keepdims=True) + bnbias #batch norm
+    h = torch.tanh(hpreact) # hidden layer activation 
     # h2 = torch.tanh(h1 @ W2 + b2)
-    logits = h1 @ W2 + b2 # output layer 
+    logits = h  @ W2 + b2 # output layer 
     loss = F.cross_entropy(logits, Ytr[ix]) # loss func
     
     for p in parameters:
@@ -70,7 +74,7 @@ for i in range(epoch):
 
     loss.backward()
 
-    lr = 0.1 if i < 30000 else 0.01 # decaying learning rate
+    lr = 0.1 if i < 7000 else 0.01 # decaying learning rate
 
     for p in parameters:
         p.data += -lr * p.grad
@@ -78,6 +82,6 @@ for i in range(epoch):
     lossi.append(loss.log10().item())
     stepi.append(i)
 
-
+print(loss.item())
 plt.plot(stepi,lossi)
 plt.show()
