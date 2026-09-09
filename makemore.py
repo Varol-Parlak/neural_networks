@@ -38,20 +38,22 @@ Xte, Yte = build_dataset(words[n2:]) # The test
 n_embed, n_hidden = 10, 200
 
 g = torch.Generator().manual_seed(2147483647)
-C = torch.rand((vocab_size, n_embed), generator=g) # Embedding table 27x10(27 chars 10 dimensions)
+C = torch.randn((vocab_size, n_embed), generator=g) # Embedding table 27x10(27 chars 10 dimensions)
 
 # Using He init
 W1 = torch.randn((n_embed * block_size, n_hidden), generator=g) * ((5/3) / (30**0.5))
-b1 = torch.randn(n_hidden, generator=g) * 0.01
-W2 = torch.randn((n_hidden, vocab_size), generator=g) * ((5/3) / (300**0.5))
-b2 = torch.randn(vocab_size, generator=g) * 0.01
+# b1 = torch.randn(n_hidden, generator=g) * 0.01
+W2 = torch.randn((n_hidden, vocab_size), generator=g) * 0.01
+b2 = torch.randn(vocab_size, generator=g) * 0
 # W3 = torch.randn((200,27), generator=g) * 0.01
 # b3 = torch.randn(27, generator=g) * 0
 # parameters = [C, W1, b1, W2, b2, W3, b3]
 bngain = torch.ones((1, n_hidden))
 bnbias = torch.zeros((1, n_hidden))
-parameters = [C, W1, b1, W2, b2, bngain, bnbias]
-epoch, batchsize = 10000, 32
+bnstd_running = torch.ones((1, n_hidden))
+bnmean_running  = torch.zeros((1, n_hidden))
+parameters = [C, W1, W2, b2, bngain, bnbias]
+epoch, batchsize = 100000, 32
 lossi, stepi = [], [] 
 
 for p in parameters:
@@ -62,8 +64,15 @@ for i in range(epoch):
 
     emb = C[Xtr[ix]] # embedding the chars into vectors
     embcat = emb.view(emb.shape[0], -1) # concat the vectors
-    hpreact = embcat @ W1 + b1 # hidden layer pre-activation
-    hpreact = bngain * (hpreact - hpreact.mean(0, keepdims=True)) / hpreact.std(0, keepdims=True) + bnbias #batch norm
+    hpreact = embcat @ W1 # hidden layer pre-activation
+    bnmeani = hpreact.mean(0, keepdims=True)
+    bnstdi = hpreact.std(0, keepdims=True)
+    hpreact = bngain * (hpreact - bnmeani) / bnstdi + bnbias #batch norm
+
+    with torch.no_grad(): # for inference not for training
+        bnmean_running = 0.999 * bnmean_running + 0.001 * bnmeani
+        bnstd_running = 0.999 * bnstd_running + 0.001 * bnstdi
+
     h = torch.tanh(hpreact) # hidden layer activation 
     # h2 = torch.tanh(h1 @ W2 + b2)
     logits = h  @ W2 + b2 # output layer 
@@ -74,7 +83,7 @@ for i in range(epoch):
 
     loss.backward()
 
-    lr = 0.1 if i < 7000 else 0.01 # decaying learning rate
+    lr = 0.1 if i < 10000 else 0.01 # decaying learning rate
 
     for p in parameters:
         p.data += -lr * p.grad
