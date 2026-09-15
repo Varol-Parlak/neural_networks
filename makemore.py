@@ -41,7 +41,7 @@ g = torch.Generator().manual_seed(2147483647)
 C = torch.randn((vocab_size, n_embed), generator=g) # Embedding table 27x10(27 chars 10 dimensions)
 
 # Using He init
-W1 = torch.randn((n_embed * block_size, n_hidden), generator=g) * ((5/3) / (30**0.5))
+W1 = torch.randn((n_embed * block_size, n_hidden), generator=g) * ((5/3) / (n_embed * block_size ** 0.5))
 # b1 = torch.randn(n_hidden, generator=g) * 0.01
 W2 = torch.randn((n_hidden, vocab_size), generator=g) * 0.01
 b2 = torch.randn(vocab_size, generator=g) * 0
