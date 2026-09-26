@@ -136,16 +136,16 @@ class Sequential:
 
 torch.manual_seed(42)
 
-# n_embd = 10 # the dim of the embedding vector
-# n_hidden = 300 # the number of neurons in the hidden layers
+# n_embd = 10 
+# n_hidden = 300 
 # model = Sequential([
 #   Embedding(vocab_size, n_embd),
 #   FlattenConsecutive(8), Linear(n_embd * 8, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
 #   Linear(n_hidden, vocab_size),
 # ])
 
-n_embd = 24 
-n_hidden = 128 
+n_embd = 24 # the dim of the embedding vector
+n_hidden = 128 # the number of neurons in the hidden layers
 model = Sequential([
   Embedding(vocab_size, n_embd),
   FlattenConsecutive(2), Linear(n_embd * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
@@ -161,3 +161,29 @@ with torch.no_grad():
 parameters = model.parameters()
 for p in parameters:
   p.requires_grad = True
+
+epoch = 200000
+batch_size = 32
+lossi = []
+
+for i in range(epoch):
+  
+  ix = torch.randint(0, Xtr.shape[0], (batch_size,))
+  Xb, Yb = Xtr[ix], Ytr[ix] # batch X,Y
+  
+  # forward pass
+  logits = model(Xb)
+  loss = F.cross_entropy(logits, Yb) # loss function
+  
+  # backward pass
+  for p in parameters:
+    p.grad = None
+  loss.backward()
+  
+  lr = 0.1 if i < 150000 else 0.01 # step learning rate decay
+  for p in parameters:
+    p.data += -lr * p.grad
+
+  if i % 10000 == 0: 
+    print(f'{i:7d}/{epoch:7d}: {loss.item():.4f}')
+  lossi.append(loss.log10().item())
