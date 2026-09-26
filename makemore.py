@@ -133,3 +133,31 @@ class Sequential:
   
   def parameters(self):
     return [p for layer in self.layers for p in layer.parameters()]
+
+torch.manual_seed(42)
+
+# n_embd = 10 # the dim of the embedding vector
+# n_hidden = 300 # the number of neurons in the hidden layers
+# model = Sequential([
+#   Embedding(vocab_size, n_embd),
+#   FlattenConsecutive(8), Linear(n_embd * 8, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+#   Linear(n_hidden, vocab_size),
+# ])
+
+n_embd = 24 
+n_hidden = 128 
+model = Sequential([
+  Embedding(vocab_size, n_embd),
+  FlattenConsecutive(2), Linear(n_embd * 2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+  FlattenConsecutive(2), Linear(n_hidden*2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+  FlattenConsecutive(2), Linear(n_hidden*2, n_hidden, bias=False), BatchNorm1d(n_hidden), Tanh(),
+  Linear(n_hidden, vocab_size),
+])
+
+# parameter init
+with torch.no_grad():
+  model.layers[-1].weight *= 0.1 # last layer make less confident
+
+parameters = model.parameters()
+for p in parameters:
+  p.requires_grad = True
