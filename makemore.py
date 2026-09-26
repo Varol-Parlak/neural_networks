@@ -187,3 +187,27 @@ for i in range(epoch):
   if i % 10000 == 0: 
     print(f'{i:7d}/{epoch:7d}: {loss.item():.4f}')
   lossi.append(loss.log10().item())
+
+plt.plot(lossi)
+
+
+# Inference and sampling
+
+for layer in model.layers:
+  layer.training = False
+
+for _ in range(20):
+    
+    out = []
+    context = [0] * block_size 
+    while True:
+      # forward pass 
+      logits = model(torch.tensor([context]))
+      probs = F.softmax(logits, dim=1)
+      ix = torch.multinomial(probs, num_samples=1).item()
+      context = context[1:] + [ix]
+      out.append(ix)
+      if ix == 0:
+        break
+    
+    print(''.join(itos[i] for i in out)) 
