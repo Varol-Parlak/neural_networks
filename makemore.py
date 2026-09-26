@@ -35,62 +35,101 @@ n2 = int(0.9*len(words))
 Xtr, Ytr = build_dataset(words[:n1]) # The training percent of the words
 Xdev, Ydev = build_dataset(words[n1:n2]) # The validation 
 Xte, Yte = build_dataset(words[n2:]) # The test 
-n_embed, n_hidden = 10, 200
 
-g = torch.Generator().manual_seed(2147483647)
-C = torch.randn((vocab_size, n_embed), generator=g) # Embedding table 27x10(27 chars 10 dimensions)
+class Linear:
+  
+  def __init__(self, fan_in, fan_out, bias=True):
+    self.weight = torch.randn((fan_in, fan_out)) / fan_in**0.5 # note: kaiming init
+    self.bias = torch.zeros(fan_out) if bias else None
+  
+  def __call__(self, x):
+    self.out = x @ self.weight
+    if self.bias is not None:
+      self.out += self.bias
+    return self.out
+  
+  def parameters(self):
+    return [self.weight] + ([] if self.bias is None else [self.bias])
 
-# Using He init
-W1 = torch.randn((n_embed * block_size, n_hidden), generator=g) * ((5/3) / (n_embed * block_size ** 0.5))
-# b1 = torch.randn(n_hidden, generator=g) * 0.01
-W2 = torch.randn((n_hidden, vocab_size), generator=g) * 0.01
-b2 = torch.randn(vocab_size, generator=g) * 0
-# W3 = torch.randn((200,27), generator=g) * 0.01
-# b3 = torch.randn(27, generator=g) * 0
-# parameters = [C, W1, b1, W2, b2, W3, b3]
-bngain = torch.ones((1, n_hidden))
-bnbias = torch.zeros((1, n_hidden))
-bnstd_running = torch.ones((1, n_hidden))
-bnmean_running  = torch.zeros((1, n_hidden))
-parameters = [C, W1, W2, b2, bngain, bnbias]
-epoch, batchsize = 100000, 32
-lossi, stepi = [], [] 
-
-for p in parameters:
-    p.requires_grad = True
-
-for i in range(epoch):
-    ix = torch.randint(0, Xtr.shape[0], (batchsize,))
-
-    emb = C[Xtr[ix]] # embedding the chars into vectors
-    embcat = emb.view(emb.shape[0], -1) # concat the vectors
-    hpreact = embcat @ W1 # hidden layer pre-activation
-    bnmeani = hpreact.mean(0, keepdims=True)
-    bnstdi = hpreact.std(0, keepdims=True)
-    hpreact = bngain * (hpreact - bnmeani) / bnstdi + bnbias #batch norm
-
-    with torch.no_grad(): # for inference not for training
-        bnmean_running = 0.999 * bnmean_running + 0.001 * bnmeani
-        bnstd_running = 0.999 * bnstd_running + 0.001 * bnstdi
-
-    h = torch.tanh(hpreact) # hidden layer activation 
-    # h2 = torch.tanh(h1 @ W2 + b2)
-    logits = h  @ W2 + b2 # output layer 
-    loss = F.cross_entropy(logits, Ytr[ix]) # loss func
+class BatchNorm1d:
+  
+  def __init__(self, dim, eps=1e-5, momentum=0.1):
+    self.eps = eps
+    self.momentum = momentum
+    self.training = True
+    self.gamma = torch.ones(dim)
+    self.beta = torch.zeros(dim)
+    self.running_mean = torch.zeros(dim)
+    self.running_var = torch.ones(dim)
+  
+  def __call__(self, x):
+    if self.training:
+      if x.ndim == 2:
+        dim = 0
+      elif x.ndim == 3:
+        dim = (0,1)
+      xmean = x.mean(dim, keepdim=True) # batch mean
+      xvar = x.var(dim, keepdim=True) # batch variance
+    else:
+      xmean = self.running_mean
+      xvar = self.running_var
+    xhat = (x - xmean) / torch.sqrt(xvar + self.eps) 
+    self.out = self.gamma * xhat + self.beta
     
-    for p in parameters:
-        p.grad = None # zero_grad() so gradients dont accumulate
+    if self.training:
+      with torch.no_grad():
+        self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * xmean
+        self.running_var = (1 - self.momentum) * self.running_var + self.momentum * xvar
+    return self.out
+  
+  def parameters(self):
+    return [self.gamma, self.beta]
 
-    loss.backward()
+class Tanh:
+  def __call__(self, x):
+    self.out = torch.tanh(x)
+    return self.out
+  def parameters(self):
+    return []
 
-    lr = 0.1 if i < 10000 else 0.01 # decaying learning rate
+class Embedding:
+  
+  def __init__(self, num_embeddings, embedding_dim):
+    self.weight = torch.randn((num_embeddings, embedding_dim))
+    
+  def __call__(self, IX):
+    self.out = self.weight[IX]
+    return self.out
+  
+  def parameters(self):
+    return [self.weight]
 
-    for p in parameters:
-        p.data += -lr * p.grad
+class FlattenConsecutive:
+  
+  def __init__(self, n):
+    self.n = n
+    
+  def __call__(self, x):
+    B, T, C = x.shape
+    x = x.view(B, T//self.n, C*self.n)
+    if x.shape[1] == 1:
+      x = x.squeeze(1)
+    self.out = x
+    return self.out
+  
+  def parameters(self):
+    return []
 
-    lossi.append(loss.log10().item())
-    stepi.append(i)
-
-print(loss.item())
-plt.plot(stepi,lossi)
-plt.show()
+class Sequential:
+  
+  def __init__(self, layers):
+    self.layers = layers
+  
+  def __call__(self, x):
+    for layer in self.layers:
+      x = layer(x)
+    self.out = x
+    return self.out
+  
+  def parameters(self):
+    return [p for layer in self.layers for p in layer.parameters()]
