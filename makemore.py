@@ -9,7 +9,7 @@ stoi = {s: i+1 for i, s in enumerate(chars)}
 stoi['.'] = 0 
 itos = {i:s for s,i in stoi.items()}
 vocab_size = len(itos)
-block_size = 3
+block_size = 8
 def build_dataset(words):
     
     X, Y = [], []
@@ -187,8 +187,6 @@ for i in range(epoch):
   if i % 10000 == 0: 
     print(f'{i:7d}/{epoch:7d}: {loss.item():.4f}')
   lossi.append(loss.log10().item())
-
-plt.plot(lossi)
 
 
 # Inference and sampling
