@@ -14,7 +14,7 @@ n_embd = 384
 n_head = 6
 n_layer = 6
 dropout = 0.2
-model_type = 'bigram'  # Set to 'gpt' to train the transformer model.
+model_type = 'gpt'  # Set to 'bigram' to train the original model instead.
 # ------------
 
 torch.manual_seed(1337)
@@ -185,7 +185,15 @@ class GPTLanguageModel(nn.Module):
         x = self.blocks(tok_emb + pos_emb)
         logits = self.lm_head(self.ln_f(x))
 
-        return logits, None
+        if targets is None:
+            loss = None
+        else:
+            B, T, C = logits.shape
+            logits = logits.view(B * T, C)
+            targets = targets.view(B * T)
+            loss = F.cross_entropy(logits, targets)
+
+        return logits, loss
 
     def generate(self, idx, max_new_tokens):
         for _ in range(max_new_tokens):
