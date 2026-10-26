@@ -214,11 +214,12 @@ else:
     raise ValueError(f"Unknown model_type: {model_type!r}")
 
 m = model.to(device)
+print(sum(p.numel() for p in m.parameters()) / 1e6, 'M parameters')
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
 for iter in range(max_iters):
-    if iter % eval_interval == 0:
+    if iter % eval_interval == 0 or iter == max_iters - 1:
         losses = estimate_loss()
         print(
             f"step {iter}: train loss {losses['train']:.4f}, "
